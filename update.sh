@@ -1,59 +1,51 @@
 #!/bin/bash
 
-# Go to script's path as a start:
-cd "$(dirname "$0")"
+# Define constants
+GITLAB_REPO="https://gitlab.com/wsusoffline/wsusoffline"
+GITLAB_API="https://gitlab.com/api/v4/projects/$(echo "$GITLAB_REPO" | grep -oE '[^/]+$')/repository/tags"
 BASEPATH=$(pwd)/wsusoffline
-if [ ! -d /temp ]; then
-   mkdir /temp
-fi
-wget --timestamping --directory-prefix="static" \
-    "https://download.wsusoffline.net/StaticDownloadLink-recent.txt"
 
-diff --strip-trailing-cr \
-    "static/StaticDownloadLink-this.txt" \
-    "static/StaticDownloadLink-recent.txt" > /dev/null
+# Ensure /temp directory exists
+[ ! -d /temp ] && mkdir /temp
 
-URL=$(cat static/StaticDownloadLink-recent.txt)
-echo Updating wsusoffline...
+# Get latest tag name from GitLab
+latest_tag=$(curl -s "$GITLAB_API" | jq -r '.[0].name')
+echo "Latest version: $latest_tag"
+
+# Formulate download URLs
+ZIP_URL="${GITLAB_REPO}/-/archive/${latest_tag}/wsusoffline-${latest_tag}.zip"
+HASH_URL="${GITLAB_REPO}/-/archive/${latest_tag}/wsusoffline-${latest_tag}_hashes.txt"
+
+echo "Updating wsusoffline..."
 cd /temp/
-wget -q $URL
-HASH=$(echo $URL |sed 's/\.zip/_hashes.txt/')
-wget -q $HASH
-FILE=$(echo $URL |sed 's/https:\/\/download.wsusoffline.net\///')
-HASH=$(echo $FILE|sed 's/\.zip/_hashes.txt/')
+wget -q "$ZIP_URL"
+wget -q "$HASH_URL"
 
+# Variables for files and hashes
+FILE="wsusoffline-${latest_tag}.zip"
+HASH="wsusoffline-${latest_tag}_hashes.txt"
+
+# Validate download
 if [[ -f $FILE ]]; then
     SHA256=$(sha256sum /temp/$FILE | awk '{print $1}')
-        if [[ $(grep -c "$SHA256,$FILE" $HASH) -gt 0 ]]; then
-            echo Download validated
-            cd /temp/
-            if [[ -d wsusoffline ]]; then
-                rm -r wsusoffline
-            fi
-            unzip -q $FILE
-            cd ..
-            cp -av /temp/wsusoffline/* "$BASEPATH"
-            else
-                    echo Download failed
-                    if [[ -f /temp/$FILE ]]; then
-                            rm -v /temp/$FILE
-                    fi
-                    if [[ -f /temp/$HASH ]]; then
-                            rm -v /temp/$HASH
-                    fi
-                    if [[ -d /temp/wsusoffline ]]; then
-                            rm -r /temp/wsusoffline/
-                    fi
-        fi
+    if grep -q "$SHA256,$FILE" $HASH; then
+        echo "Download validated"
+        [[ -d wsusoffline ]] && rm -r wsusoffline
+        unzip -q $FILE
+        cd ..
+        cp -av /temp/wsusoffline/* "$BASEPATH"
+    else
+        echo "Download failed"
+        [[ -f /temp/$FILE ]] && rm -v /temp/$FILE
+        [[ -f /temp/$HASH ]] && rm -v /temp/$HASH
+        [[ -d /temp/wsusoffline ]] && rm -r /temp/wsusoffline/
+    fi
 fi
 
-cd $BASEPATH
-# cleanup
-if [ -d /temp ]; then
-   rm -rf /temp
-fi
+# Cleanup
+[[ -d /temp ]] && rm -rf /temp
 
-# make the shell scripts executabal again
+# Make the shell scripts executable again
 find ../ -name '*.bash' -print0 | xargs -0 chmod +x
 find ../ -name '*.sh' -print0 | xargs -0 chmod +x
 cp -rf /wsus/preferences.bash /wsus/wsusoffline/sh/preferences.bash
