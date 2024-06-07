@@ -14,11 +14,15 @@ ENV ISO="no"
 ENV SLEEP=48h
 ENV DOWNLOADERS="aria2c wget"
 
+# Define the GitHub repository URL
+ARG REPO_URL=https://raw.githubusercontent.com/hellkaim/docker-wsusoffline/master
+
 # WSUSOFFLINE
-ADD update.sh /wsus/
-ADD run.sh /wsus/
-ADD preferences.bash /wsus/
-ADD download.sh /wsus/
+# Download scripts from GitHub
+ADD ${REPO_URL}/update.sh /wsus/update.sh
+ADD ${REPO_URL}/run.sh /wsus/run.sh
+ADD ${REPO_URL}/preferences.bash /wsus/preferences.bash
+ADD ${REPO_URL}/download.sh /wsus/download.sh
 RUN ln -s /wsus/run.sh /etc/my_init.d/run.sh
 RUN chmod +x /wsus/*.sh
 RUN ln -s /wsus/wsusoffline/client /client

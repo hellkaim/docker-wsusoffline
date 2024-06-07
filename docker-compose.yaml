@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  wsusoffline:
+    image: r0gger/docker-wsusoffline:latest
+    container_name: wsusoffline_updater
+    volumes:
+      - wsusoffline_updates:/client
+    environment:
+      - SYSTEMS=w100-x64,w63-x64,w61-x64
+      - LANGUAGE=enu,rus
+      - PARAMS=-includesp -includecpp -includedotnet -includewddefs8
+      - ISO=no
+      - SLEEP=48h
+      - DOWNLOADERS=ariaia2c wget
+    restart: unless-stopped
+
+volumes:
+  wsusoffline_updates:
+    driver: local
